@@ -1,0 +1,136 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8 font-sans text-slate-800 selection:bg-indigo-100">
+  
+  <header class="mb-8 flex flex-col items-center justify-center">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-sm font-semibold mb-3 shadow-sm">
+      <span class="relative flex h-2 w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+      </span>
+      Sistema de IA Activo
+    </div>
+    <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-900 to-indigo-800 tracking-tight">Sesión de Apoyo - Conciencia Social</h1>
+    <p class="text-slate-500 mt-2 font-medium">Monitoreo y asistencia psicológica en tiempo real</p>
+  </header>
+
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[75vh]">
+
+    <section class="lg:col-span-4 bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col overflow-hidden h-[60vh] lg:h-full relative">
+      
+      <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white shadow-md z-10 flex justify-between items-center">
+        <h3 class="text-lg font-bold m-0 flex items-center gap-3">
+          <div class="bg-white/20 p-2 rounded-lg backdrop-blur-sm text-xl leading-none shadow-inner">🤖</div>
+          Asistente IA
+        </h3>
+        <span class="text-xs bg-white/20 px-3 py-1 rounded-full font-medium tracking-wide shadow-sm border border-white/10">En línea</span>
+      </div>
+
+      <div class="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/30">
+        <div *ngFor="let msg of mensajes" 
+             [ngClass]="msg.emisor === 'usuario' ? 'self-end bg-indigo-600 text-white rounded-br-sm shadow-md' : 'self-start bg-white border border-slate-100 text-slate-700 rounded-bl-sm shadow-sm'"
+             class="p-4 rounded-2xl max-w-[85%] relative group transition-all hover:shadow-lg">
+          <p class="text-sm leading-relaxed font-medium">{{ msg.texto }}</p>
+        </div>
+        
+        <div *ngIf="pensando" class="self-start bg-white border border-slate-100 shadow-sm p-4 rounded-2xl rounded-bl-sm flex items-center gap-2 h-12">
+          <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+          <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+          <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+        </div>
+      </div>
+
+      <div class="p-4 bg-white/90 backdrop-blur-md border-t border-slate-100/50">
+        <div class="flex gap-2 items-center">
+          
+          <button (click)="toggleNotaVoz()" 
+                  [ngClass]="modoMic === 'nota_voz' ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 animate-pulse ring-4 ring-red-500/20' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700'" 
+                  class="p-3.5 rounded-2xl transition-all border border-transparent active:scale-95 flex-shrink-0" title="Grabar nota de voz">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+          </button>
+
+          <input #mensajeInput (input)="alEscribir()" (keydown.enter)="enviarMensaje(mensajeInput.value)" type="text" placeholder="Escribe tu mensaje..." class="flex-1 p-3.5 rounded-2xl border-0 bg-slate-100/80 focus:bg-white focus:ring-2 focus:ring-indigo-500/50 shadow-inner text-sm transition-all outline-none text-slate-700 placeholder-slate-400 font-medium">
+          
+          <button (click)="enviarMensaje(mensajeInput.value)" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:scale-95 text-white p-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-500/30 flex-shrink-0">
+            <svg class="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="lg:col-span-8 flex flex-col gap-8 h-full">
+
+      <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 p-8 flex flex-col items-center justify-center flex-1 relative overflow-hidden">
+        
+        <div class="absolute top-[-50px] right-[-50px] w-64 h-64 bg-indigo-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
+
+        <div class="relative w-full max-w-3xl aspect-video bg-slate-900 rounded-[2rem] overflow-hidden shadow-2xl mb-8 ring-1 ring-white/10 group">
+          <video #videoElement autoplay playsinline muted [class.opacity-0]="camApagada" class="w-full h-full object-cover transition-opacity duration-500"></video>
+          
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent pointer-events-none"></div>
+
+          <div *ngIf="!stream || camApagada" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 bg-slate-900/95 backdrop-blur-md transition-all">
+            <div class="p-4 bg-white/5 rounded-full mb-4 ring-1 ring-white/10">
+              <svg class="w-10 h-10 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </div>
+            <p class="font-medium tracking-wide">{{ !stream ? 'Cámara en espera (Opcional)' : 'Cámara pausada' }}</p>
+          </div>
+        </div>
+
+        <div class="flex gap-4 flex-wrap justify-center relative z-10">
+          <button *ngIf="!stream" (click)="iniciarCamara()" class="bg-slate-800 hover:bg-slate-900 active:scale-95 text-white px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            Prender Cámara
+          </button>
+          
+          <button (click)="toggleConversacionLive()" [ngClass]="modoMic === 'conversacion_live' ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/40 ring-4 ring-red-500/20' : 'bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-100 shadow-sm'" class="active:scale-95 px-8 py-3.5 rounded-2xl font-bold transition-all flex items-center gap-3">
+             <div [ngClass]="modoMic === 'conversacion_live' ? 'animate-pulse bg-white/20' : 'bg-indigo-100 text-indigo-600'" class="p-1.5 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+             </div>
+             {{ modoMic === 'conversacion_live' ? 'Modo Live: ESCUCHANDO...' : 'Activar Modo Conversación' }}
+          </button>
+
+          <ng-container *ngIf="stream">
+            <button (click)="toggleCamaraVisual()" class="bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 active:scale-95 px-6 py-3.5 rounded-2xl font-bold transition-all shadow-sm">
+              {{ camApagada ? 'Mostrar Video' : 'Ocultar Video' }}
+            </button>
+            <button (click)="detenerTodo()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 active:scale-95 px-6 py-3.5 rounded-2xl font-bold transition-all shadow-sm">
+              Apagar Todo
+            </button>
+          </ng-container>
+        </div>
+      </div>
+
+      <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 p-8 flex items-center justify-center relative overflow-hidden min-h-[180px]">
+         
+         <div class="absolute inset-0 opacity-[0.08] transition-colors duration-1000 ease-in-out" [style.background-color]="colorCorazon"></div>
+         <div class="absolute right-0 top-0 w-64 h-64 bg-gradient-to-bl from-slate-50 to-transparent opacity-50"></div>
+         
+         <div class="text-center z-10 flex flex-col md:flex-row items-center md:gap-10 w-full max-w-2xl">
+            
+            <div class="relative shrink-0 flex items-center justify-center w-28 h-28 mb-4 md:mb-0">
+              <div [style.color]="colorCorazon" class="text-[5.5rem] animate-pulse drop-shadow-2xl transition-colors duration-1000 ease-in-out relative z-10 transform hover:scale-110 cursor-default">♥</div>
+              <div [style.border-color]="colorCorazon" class="absolute inset-2 border-4 rounded-full opacity-20 animate-ping transition-colors duration-1000 ease-in-out"></div>
+            </div>
+            
+            <div class="text-center md:text-left flex-1">
+              <div class="flex items-center justify-center md:justify-start gap-3 mb-2">
+                <h3 class="text-2xl font-black text-slate-800 tracking-tight">Análisis Biométrico</h3>
+                <span class="flex h-2.5 w-2.5">
+                  <span class="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+              </div>
+              <p class="font-medium leading-relaxed text-slate-500 text-lg">
+                <span class="font-bold border-b-2 border-dashed transition-colors duration-1000 text-slate-700" [style.border-color]="colorCorazon">{{ nombreUsuario }}</span> presenta un estado de:
+                <br>
+                <span class="font-bold text-xl inline-block mt-2 transition-colors duration-1000 ease-in-out px-4 py-1.5 rounded-xl bg-white shadow-sm border border-slate-100" [style.color]="colorCorazon">
+                  {{ diagnosticoTexto }}
+                </span>
+              </p>
+            </div>
+         </div>
+      </div>
+
+    </section>
+
+  </main>
+</div>
