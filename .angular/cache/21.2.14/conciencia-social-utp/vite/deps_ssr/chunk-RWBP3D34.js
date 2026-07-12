@@ -1,20 +1,17 @@
 import { createRequire } from 'module';const require = createRequire(import.meta.url);
 import {
-  index
-} from "./chunk-7VO7PY3Q.js";
-import {
   ActivatedRoute,
   ROUTES,
   Router,
   loadChildren
-} from "./chunk-5TFBZUHM.js";
+} from "./chunk-C2G2QQXZ.js";
 import {
   BrowserDomAdapter,
   BrowserModule,
   EVENT_MANAGER_PLUGINS,
   EventManagerPlugin,
   HTTP_ROOT_INTERCEPTOR_FNS
-} from "./chunk-Z4ZAXKBA.js";
+} from "./chunk-ECNXJUKH.js";
 import {
   APP_BASE_HREF,
   NullViewportScroller,
@@ -24,7 +21,7 @@ import {
   XhrFactory,
   getDOM,
   setRootDomAdapter
-} from "./chunk-6UQFUFHY.js";
+} from "./chunk-RMABRH3Z.js";
 import {
   APP_ID,
   ApplicationRef,
@@ -71,7 +68,10 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-IYKZDUFW.js";
+} from "./chunk-3GQABDAZ.js";
+import {
+  index
+} from "./chunk-OPY43WTJ.js";
 import {
   __objRest,
   __spreadProps,
@@ -372,7 +372,7 @@ var ServerXhr = class _ServerXhr {
     if (!this.xhrImpl) {
       const {
         default: xhr
-      } = await import("./xhr2-E5RTESSH.js");
+      } = await import("./xhr2-V6PWYMAO.js");
       this.xhrImpl = xhr;
     }
   }
@@ -12662,4 +12662,4 @@ export {
   AngularAppEngine,
   createRequestHandler
 };
-//# sourceMappingURL=chunk-J4OEZFBK.js.map
+//# sourceMappingURL=chunk-RWBP3D34.js.map
