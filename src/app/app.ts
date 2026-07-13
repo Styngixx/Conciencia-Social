@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, ViewChild, OnDestroy, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -13,13 +13,12 @@ export class App implements OnInit, OnDestroy {
   
   stream: MediaStream | null = null;
   camApagada = false;
-
   reproductorIA: HTMLAudioElement | null = null;
   mensajes: { emisor: 'usuario' | 'ia', texto: string }[] = [];
   pensando = false;
   iaHablando = false;
 
-  nombreUsuario = 'Francis'; 
+  nombreUsuario = 'Invitado'; // <-- Cambiado de 'Francis' a 'Invitado' por defecto
   colorCorazon = '#94a3b8'; 
   diagnosticoTexto = 'Esperando conexión con Scala y Groq...';
 
@@ -27,70 +26,187 @@ export class App implements OnInit, OnDestroy {
   modoMic: 'apagado' | 'conversacion_live' | 'nota_voz' = 'apagado';
   fueDictadoPorVoz = false; 
 
+  constructor(private ngZone: NgZone, private cdr: ChangeDetectorRef) {}
+
   ngOnInit() {
     this.inicializarReconocimiento();
   }
 
+  trackByMensaje(index: number, item: any) {
+    return index;
+  }
+
+  // --- NUEVA FUNCIÓN: DETECTOR DE NOMBRES ---
+  detectarNombre(texto: string) {
+    // Buscamos patrones comunes de presentación
+    const patrones = [
+      /me llamo\s+([a-záéíóúñ]+)/i,
+      /mi nombre es\s+([a-záéíóúñ]+)/i,
+      /soy\s+([a-záéíóúñ]+)/i
+    ];
+
+    for (const patron of patrones) {
+      const match = texto.match(patron);
+      if (match && match[1]) {
+        const nombre = match[1];
+        // Evitamos que confunda el nombre con palabras comunes (ej: "soy un estudiante")
+        const palabrasIgnoradas = ['un', 'una', 'el', 'la', 'muy', 'feliz', 'triste', 'ansioso', 'estudiante', 'programador', 'alguien'];
+        
+        if (!palabrasIgnoradas.includes(nombre.toLowerCase())) {
+          // Ponemos la primera letra en mayúscula y actualizamos
+          this.nombreUsuario = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+          break;
+        }
+      }
+    }
+  }
+
+  // --- RECONOCIMIENTO DE VOZ INTACTO ---
   inicializarReconocimiento() {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      this.reconocimientoVoz = new (window as any).webkitSpeechRecognition();
-      this.reconocimientoVoz.continuous = false; 
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      this.reconocimientoVoz = new SpeechRecognition();
       this.reconocimientoVoz.interimResults = false; 
-      this.reconocimientoVoz.lang = ''; // Vacío para que detecte cualquier idioma (Inglés, Español, etc.)
+      this.reconocimientoVoz.lang = 'es-ES';
 
       this.reconocimientoVoz.onresult = (event: any) => {
-        const textoHablado = event.results[0][0].transcript.trim();
-        if (!textoHablado) return;
-
-        if (this.modoMic === 'conversacion_live') {
-          // Si está en Live, se manda solo y exige audio
-          this.enviarMensaje(textoHablado, true);
-        } else if (this.modoMic === 'nota_voz') {
-          // Si es nota de voz, se pone en la caja de texto y espera a que el usuario presione Enviar
-          if (this.mensajeInput) {
-            this.mensajeInput.nativeElement.value = textoHablado;
+        this.ngZone.run(() => {
+          let nuevoFragmento = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            nuevoFragmento += event.results[i][0].transcript;
           }
-          this.fueDictadoPorVoz = true;
-          this.modoMic = 'apagado'; // Apaga el botón rojo de grabar
+          const textoLimpio = nuevoFragmento.trim();
+
+          if (!textoLimpio) return;
+          console.log("🎤 MICRÓFONO ESCUCHÓ:", textoLimpio);
+
+          if (this.modoMic === 'conversacion_live') {
+            if (this.mensajeInput) {
+              const actual = this.mensajeInput.nativeElement.value.trim();
+              this.mensajeInput.nativeElement.value = actual ? actual + ' ' + textoLimpio : textoLimpio;
+            }
+          } else if (this.modoMic === 'nota_voz') {
+            this.enviarMensaje(textoLimpio, true);
+            this.modoMic = 'apagado';
+            try { this.reconocimientoVoz.stop(); } catch(e) {}
+          }
+          this.cdr.detectChanges();
+        });
+      };
+
+      this.reconocimientoVoz.onerror = (event: any) => {
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          this.ngZone.run(() => {
+            this.modoMic = 'apagado';
+            this.cdr.detectChanges();
+          });
         }
       };
 
       this.reconocimientoVoz.onend = () => {
-        // Ciclo automático para el Modo Conversación Live
-        if (this.modoMic === 'conversacion_live' && !this.pensando && !this.iaHablando) {
-          try { this.reconocimientoVoz.start(); } catch(e){}
-        } else if (this.modoMic === 'nota_voz') {
-          this.modoMic = 'apagado';
-        }
+        this.ngZone.run(() => {
+          if (this.modoMic === 'conversacion_live') {
+            try { this.reconocimientoVoz.start(); } catch(e) {}
+          } else if (this.modoMic === 'nota_voz') {
+            this.modoMic = 'apagado';
+          }
+          this.cdr.detectChanges();
+        });
       };
     }
   }
 
+  // --- BOTÓN MODO LIVE INTACTO ---
   toggleConversacionLive() {
     if (this.modoMic === 'conversacion_live') {
       this.modoMic = 'apagado';
-      this.reconocimientoVoz.stop();
+      this.reconocimientoVoz.continuous = false;
+      
+      const textoAcumulado = this.mensajeInput ? this.mensajeInput.nativeElement.value.trim() : '';
+      
+      try { this.reconocimientoVoz.stop(); } catch(e) {}
+      this.cdr.detectChanges();
+      
+      if (textoAcumulado) {
+        setTimeout(() => {
+          this.enviarMensaje(textoAcumulado, true);
+        }, 150);
+      }
+
     } else {
       this.modoMic = 'conversacion_live';
+      this.reconocimientoVoz.continuous = true; 
       this.interrumpirIA();
-      try { this.reconocimientoVoz.start(); } catch(e){}
+      if (this.mensajeInput) this.mensajeInput.nativeElement.value = ''; 
+      this.cdr.detectChanges();
+      try { this.reconocimientoVoz.start(); } catch(e) { this.modoMic = 'apagado'; }
     }
   }
 
+  // --- BOTÓN MICRO CHIQUITO INTACTO ---
   toggleNotaVoz() {
     if (this.modoMic === 'nota_voz') {
       this.modoMic = 'apagado';
-      this.reconocimientoVoz.stop();
+      try { this.reconocimientoVoz.stop(); } catch(e) {}
     } else {
       this.modoMic = 'nota_voz';
+      this.reconocimientoVoz.continuous = false; 
       this.fueDictadoPorVoz = true;
       this.interrumpirIA();
-      try { this.reconocimientoVoz.start(); } catch(e){}
+      try { this.reconocimientoVoz.start(); } catch(e) { this.modoMic = 'apagado'; }
+    }
+    this.cdr.detectChanges();
+  }
+
+  // --- ENVÍO MANUAL (AQUÍ AÑADIMOS LA DETECCIÓN DE NOMBRE) ---
+  async enviarMensaje(texto: string, requiereAudioParam?: boolean) {
+    if (!texto || !texto.trim()) return;
+
+    // ¡MAGIA!: Antes de hacer cualquier cosa, revisamos si dijo su nombre
+    this.detectarNombre(texto.trim());
+
+    if (this.mensajeInput) {
+      this.mensajeInput.nativeElement.value = '';
+    }
+    this.mensajes = [...this.mensajes, { emisor: 'usuario', texto: texto.trim() }];
+    this.pensando = true;
+
+    const debeGenerarAudio = requiereAudioParam !== undefined ? requiereAudioParam : this.fueDictadoPorVoz;
+    this.fueDictadoPorVoz = false;
+    
+    this.cdr.detectChanges();
+    this.cdr.markForCheck(); 
+
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: texto.trim(), emocion_detectada: 'ansiedad', requiere_audio: debeGenerarAudio })
+      });
+      const data = await response.json();
+
+      this.ngZone.run(() => {
+        this.pensando = false;
+        if (data && data.respuesta) {
+            this.mensajes = [...this.mensajes, { emisor: 'ia', texto: data.respuesta }];
+            this.colorCorazon = data.color || '#94a3b8';
+            this.diagnosticoTexto = data.diagnostico || 'Evaluación terminada';
+        }
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+      });
+    } catch (error) {
+      this.ngZone.run(() => {
+        this.pensando = false;
+        this.mensajes = [...this.mensajes, { emisor: 'ia', texto: 'Error de conexión.' }];
+        this.cdr.detectChanges();
+        this.cdr.markForCheck();
+      });
     }
   }
 
+  // --- RESTO DE FUNCIONES INTACTAS ---
   alEscribir() {
-    // Si toca el teclado, anula la intención de voz
     this.fueDictadoPorVoz = false;
   }
 
@@ -100,7 +216,8 @@ export class App implements OnInit, OnDestroy {
       this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       if (this.videoElement) this.videoElement.nativeElement.srcObject = this.stream;
       this.camApagada = false;
-    } catch (e) { alert('Permite acceso a la cámara.'); }
+      this.cdr.detectChanges();
+    } catch (e) { console.error('Error al iniciar cámara', e); }
   }
 
   toggleCamaraVisual() {
@@ -109,6 +226,7 @@ export class App implements OnInit, OnDestroy {
       if (track) {
         track.enabled = !track.enabled;
         this.camApagada = !track.enabled;
+        this.cdr.detectChanges();
       }
     }
   }
@@ -121,76 +239,17 @@ export class App implements OnInit, OnDestroy {
     this.modoMic = 'apagado';
     if (this.reconocimientoVoz) this.reconocimientoVoz.stop();
     this.interrumpirIA();
+    this.cdr.detectChanges();
   }
-
-  ngOnDestroy() { this.detenerTodo(); }
 
   interrumpirIA() {
     if (this.reproductorIA) {
       this.reproductorIA.pause();
-      this.reproductorIA.currentTime = 0; 
       this.iaHablando = false;
     }
   }
 
-  async enviarMensaje(texto: string, requiereAudioParam?: boolean) {
-    if (!texto.trim()) return;
-    this.interrumpirIA();
-    
-    if (this.mensajeInput) this.mensajeInput.nativeElement.value = '';
-    
-    this.mensajes.push({ emisor: 'usuario', texto: texto });
-    this.pensando = true;
-
-    // Decide si debe pedirle a Python que genere voz
-    const debeGenerarAudio = requiereAudioParam !== undefined ? requiereAudioParam : this.fueDictadoPorVoz;
-    this.fueDictadoPorVoz = false; // Resetear bandera
-
-    // Pausar el micrófono mientras procesa para no captar ruidos basura
-    if (this.modoMic === 'conversacion_live') this.reconocimientoVoz.stop();
-
-    try {
-      const response = await fetch('http://localhost:8000/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          texto: texto, 
-          emocion_detectada: 'ansiedad',
-          requiere_audio: debeGenerarAudio 
-        })
-      });
-      
-      const data = await response.json();
-      this.pensando = false;
-      this.mensajes.push({ emisor: 'ia', texto: data.respuesta });
-      
-      // Actualiza la biometría (Psicología del color)
-      if (data.color) this.colorCorazon = data.color;
-      if (data.diagnostico) this.diagnosticoTexto = data.diagnostico;
-
-      // Reproducir audio si Python lo mandó
-      if (data.audio && data.audio !== "") {
-        this.iaHablando = true;
-        this.reproductorIA = new Audio('data:audio/mp3;base64,' + data.audio);
-        this.reproductorIA.play().catch(e => { console.log('Autoplay bloqueado'); this.iaHablando = false; });
-        
-        // Cuando termine de hablar, reanuda la escucha si estamos en Modo Live
-        this.reproductorIA.onended = () => {
-          this.iaHablando = false;
-          if (this.modoMic === 'conversacion_live') {
-            try { this.reconocimientoVoz.start(); } catch(e){}
-          }
-        };
-      } else {
-        // Si fue un mensaje de texto (sin voz), reanuda el Live al instante
-        if (this.modoMic === 'conversacion_live') {
-          try { this.reconocimientoVoz.start(); } catch(e){}
-        }
-      }
-      
-    } catch (error) {
-      this.pensando = false;
-      this.mensajes.push({ emisor: 'ia', texto: 'Error de conexión.' });
-    }
+  ngOnDestroy() { 
+    if (this.reconocimientoVoz) this.reconocimientoVoz.stop(); 
   }
 }

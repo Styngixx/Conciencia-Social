@@ -24,19 +24,23 @@
         <span class="text-xs bg-white/20 px-3 py-1 rounded-full font-medium tracking-wide shadow-sm border border-white/10">En línea</span>
       </div>
 
-      <div class="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/30">
-        <div *ngFor="let msg of mensajes" 
-             [ngClass]="msg.emisor === 'usuario' ? 'self-end bg-indigo-600 text-white rounded-br-sm shadow-md' : 'self-start bg-white border border-slate-100 text-slate-700 rounded-bl-sm shadow-sm'"
-             class="p-4 rounded-2xl max-w-[85%] relative group transition-all hover:shadow-lg">
-          <p class="text-sm leading-relaxed font-medium">{{ msg.texto }}</p>
-        </div>
-        
-        <div *ngIf="pensando" class="self-start bg-white border border-slate-100 shadow-sm p-4 rounded-2xl rounded-bl-sm flex items-center gap-2 h-12">
-          <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
-          <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
-          <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
-        </div>
-      </div>
+<!-- Reemplaza el bloque del chat completo con esto: -->
+<div class="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-slate-50/30">
+  <!-- TRUCO: Mantenemos el debug oculto para obligar a Angular a refrescar -->
+  <pre style="display: none;">{{ mensajes | json }}</pre>
+
+  <div *ngFor="let msg of mensajes; trackBy: trackByMensaje" 
+       [ngClass]="msg.emisor === 'usuario' ? 'self-end bg-indigo-600 text-white rounded-br-sm shadow-md' : 'self-start bg-white border border-slate-100 text-slate-700 rounded-bl-sm shadow-sm'"
+       class="p-4 rounded-2xl max-w-[85%] relative group transition-all hover:shadow-lg">
+    <p class="text-sm leading-relaxed font-medium">{{ msg.texto }}</p>
+  </div>
+  
+  <div *ngIf="pensando" class="self-start bg-white border border-slate-100 shadow-sm p-4 rounded-2xl rounded-bl-sm flex items-center gap-2 h-12">
+    <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+    <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+    <span class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+  </div>
+</div>
 
       <div class="p-4 bg-white/90 backdrop-blur-md border-t border-slate-100/50">
         <div class="flex gap-2 items-center">
