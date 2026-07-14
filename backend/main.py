@@ -13,15 +13,19 @@ from gtts import gTTS
 
 load_dotenv()
 app = FastAPI()
-# Pon esto debajo de load_dotenv()
+
+# Verificación de API Key
 api_key = os.getenv("GROQ_API_KEY")
 print(f"DEBUG: ¿La API Key está cargada? {'SÍ' if api_key else 'NO'}")
 if api_key:
     print(f"DEBUG: Longitud de la clave: {len(api_key)}")
 
+# Ajuste de CORS para Producción
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    # El "*" permite que cualquier frontend se conecte a tu API en la nube. 
+    # (Si en el futuro tienes un dominio para tu frontend, ponlo aquí)
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,11 +53,14 @@ def procesar_mensaje(mensaje: MensajeUsuario):
     # 1. Consultar a SCALA
     bpm_actual = 80
     try:
+        # NOTA: En la nube, 'localhost:9000' buscará dentro del contenedor de Render, 
+        # no en tu computadora. Como está en un bloque try-except, simplemente 
+        # fallará de forma silenciosa y usará 80 BPM por defecto.
         scala_res = requests.get("http://localhost:9000/sensor", timeout=2)
         if scala_res.status_code == 200:
             bpm_actual = scala_res.json().get("bpm", 80)
     except:
-        print("⚠️ Scala no respondió, usando datos por defecto.")
+        print("⚠️ Scala no respondió, usando datos por defecto (80 BPM).")
 
     # 2. Consultar Prolog
     directriz = "Escuchar activamente."
@@ -85,7 +92,7 @@ def procesar_mensaje(mensaje: MensajeUsuario):
             temperature=0.7
         )
         
-        # Limpieza de respuesta (por si Groq añade texto Markdown)
+        # Limpieza de respuesta
         raw_content = chat_completion.choices[0].message.content.strip()
         if raw_content.startswith("```json"):
             raw_content = raw_content.replace("```json", "").replace("```", "").strip()
@@ -96,7 +103,7 @@ def procesar_mensaje(mensaje: MensajeUsuario):
         diagnostico_ia = ia_data.get("diagnostico", "Evaluación fallida")
         
     except Exception as e:
-        print(f"❌ Error crítico en Groq o JSON: {e}") # ¡Esto te dirá el error real!
+        print(f"❌ Error crítico en Groq o JSON: {e}") 
         texto_ia, color_ia, diagnostico_ia = "Error interno del servidor", "#000000", "Error"
 
     # 4. Generar Voz
