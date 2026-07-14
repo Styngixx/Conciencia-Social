@@ -6,6 +6,10 @@ import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+# --- NUEVAS IMPORTACIONES PARA TU WEB ---
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+# ----------------------------------------
 from pydantic import BaseModel
 from pyswip import Prolog
 from groq import Groq
@@ -14,30 +18,23 @@ from gtts import gTTS
 load_dotenv()
 app = FastAPI()
 
-# Verificación de API Key
 api_key = os.getenv("GROQ_API_KEY")
 print(f"DEBUG: ¿La API Key está cargada? {'SÍ' if api_key else 'NO'}")
-if api_key:
-    print(f"DEBUG: Longitud de la clave: {len(api_key)}")
 
-# Ajuste de CORS para Producción
 app.add_middleware(
     CORSMiddleware,
-    # El "*" permite que cualquier frontend se conecte a tu API en la nube. 
-    # (Si en el futuro tienes un dominio para tu frontend, ponlo aquí)
     allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Inicialización segura de Prolog
+# Inicialización de Prolog
 prolog = Prolog()
 try:
-    # Usamos la ruta absoluta al archivo para evitar errores de ubicación
     ruta_prolog = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reglas.pl")
     prolog.consult(ruta_prolog)
-    print("✅ Reglas de Prolog cargadas desde:", ruta_prolog)
+    print("✅ Reglas de Prolog cargadas")
 except Exception as e:
     print(f"❌ Error crítico al cargar Prolog: {e}")
 
@@ -53,14 +50,11 @@ def procesar_mensaje(mensaje: MensajeUsuario):
     # 1. Consultar a SCALA
     bpm_actual = 80
     try:
-        # NOTA: En la nube, 'localhost:9000' buscará dentro del contenedor de Render, 
-        # no en tu computadora. Como está en un bloque try-except, simplemente 
-        # fallará de forma silenciosa y usará 80 BPM por defecto.
         scala_res = requests.get("http://localhost:9000/sensor", timeout=2)
         if scala_res.status_code == 200:
             bpm_actual = scala_res.json().get("bpm", 80)
     except:
-        print("⚠️ Scala no respondió, usando datos por defecto (80 BPM).")
+        pass
 
     # 2. Consultar Prolog
     directriz = "Escuchar activamente."
@@ -72,7 +66,7 @@ def procesar_mensaje(mensaje: MensajeUsuario):
     except Exception as e:
         print(f"❌ Error en consulta Prolog: {e}")
 
-    # 3. Prompt estricto para Groq
+    # 3. Prompt Groq
     prompt_sistema = f"""
     Eres un psicólogo virtual evaluando a Francis. El usuario te habla.
     Directriz clínica: '{directriz}'.
@@ -91,8 +85,6 @@ def procesar_mensaje(mensaje: MensajeUsuario):
             model="llama-3.1-8b-instant",
             temperature=0.7
         )
-        
-        # Limpieza de respuesta
         raw_content = chat_completion.choices[0].message.content.strip()
         if raw_content.startswith("```json"):
             raw_content = raw_content.replace("```json", "").replace("```", "").strip()
@@ -103,10 +95,9 @@ def procesar_mensaje(mensaje: MensajeUsuario):
         diagnostico_ia = ia_data.get("diagnostico", "Evaluación fallida")
         
     except Exception as e:
-        print(f"❌ Error crítico en Groq o JSON: {e}") 
-        texto_ia, color_ia, diagnostico_ia = "Error interno del servidor", "#000000", "Error"
+        texto_ia, color_ia, diagnostico_ia = "Error interno", "#000000", "Error"
 
-    # 4. Generar Voz
+    # 4. Voz
     audio_base64 = ""
     if mensaje.requiere_audio and "Error" not in texto_ia:
         try:
@@ -115,8 +106,8 @@ def procesar_mensaje(mensaje: MensajeUsuario):
             tts.write_to_fp(fp)
             fp.seek(0)
             audio_base64 = base64.b64encode(fp.read()).decode('utf-8')
-        except Exception as e:
-            print(f"Error Voz: {e}")
+        except:
+            pass
 
     return {
         "respuesta": texto_ia,
@@ -124,3 +115,22 @@ def procesar_mensaje(mensaje: MensajeUsuario):
         "color": color_ia,
         "diagnostico": diagnostico_ia
     }
+
+# ==========================================================
+# MAGIA PARA MOSTRAR TU WEB DE ANGULAR
+# ==========================================================
+ruta_public = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+
+@app.get("/{full_path:path}")
+async def servir_web(full_path: str):
+    # Si Render pide un archivo específico (ej. un .js, un .css, o favicon.ico)
+    ruta_archivo = os.path.join(ruta_public, full_path)
+    if os.path.isfile(ruta_archivo):
+        return FileResponse(ruta_archivo)
+    
+    # Si entra a la ruta principal, le mandamos tu página hermosa
+    ruta_index = os.path.join(ruta_public, "index.html")
+    if os.path.isfile(ruta_index):
+        return FileResponse(ruta_index)
+    
+    return {"error": "Falta subir los archivos de Angular a la carpeta public"}
