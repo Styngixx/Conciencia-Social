@@ -116,22 +116,22 @@ def procesar_mensaje(mensaje: MensajeUsuario):
         "diagnostico": diagnostico_ia
     }
 
-#==========================================================
-#MAGIA PARA MOSTRAR TU WEB DE ANGULAR
-#==========================================================
-#Le decimos a Python que baje exactamente hasta donde Angular guardó los archivos
-ruta_public = os.path.join(os.path.dirname(os.path.abspath(file)), "public", "dist", "conciencia-social-utp", "browser")
+# ==========================================================
+# MAGIA PARA MOSTRAR TU WEB DE ANGULAR
+# ==========================================================
+# Le decimos a Python que baje exactamente hasta donde Angular guardó los archivos
+ruta_public = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public", "dist", "conciencia-social-utp", "browser")
 
 @app.get("/{full_path:path}")
 async def servir_web(full_path: str):
     # Si Render pide un archivo específico (ej. un .js, un .css, o favicon.ico)
-    #ruta_archivo = os.path.join(ruta_public, full_path)
+    ruta_archivo = os.path.join(ruta_public, full_path)
     if os.path.isfile(ruta_archivo):
         return FileResponse(ruta_archivo)
-
-#Si entra a la ruta principal, le mandamos tu página hermosa
+    
+    # Si entra a la ruta principal, le mandamos tu página hermosa
     ruta_index = os.path.join(ruta_public, "index.html")
     if os.path.isfile(ruta_index):
         return FileResponse(ruta_index)
-
+    
     return {"error": f"Buscando en {ruta_public} pero no encontré el index.html. Revisa las carpetas."}
