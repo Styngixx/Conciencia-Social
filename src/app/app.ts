@@ -18,9 +18,9 @@ export class App implements OnInit, OnDestroy {
   pensando = false;
   iaHablando = false;
 
-  nombreUsuario = 'Invitado'; // <-- Cambiado de 'Francis' a 'Invitado' por defecto
+  nombreUsuario = 'Invitado';
   colorCorazon = '#94a3b8'; 
-  diagnosticoTexto = 'Esperando conexión con Scala y Groq...';
+  diagnosticoTexto = 'Esperando conexión con la IA...';
 
   reconocimientoVoz: any;
   modoMic: 'apagado' | 'conversacion_live' | 'nota_voz' = 'apagado';
@@ -32,13 +32,12 @@ export class App implements OnInit, OnDestroy {
     this.inicializarReconocimiento();
   }
 
-  trackByMensaje(index: number, item: any) {
+  trackByMensaje(index: number) {
     return index;
   }
 
-  // --- NUEVA FUNCIÓN: DETECTOR DE NOMBRES ---
+  // --- DETECTOR DE NOMBRES ---
   detectarNombre(texto: string) {
-    // Buscamos patrones comunes de presentación
     const patrones = [
       /me llamo\s+([a-záéíóúñ]+)/i,
       /mi nombre es\s+([a-záéíóúñ]+)/i,
@@ -49,11 +48,9 @@ export class App implements OnInit, OnDestroy {
       const match = texto.match(patron);
       if (match && match[1]) {
         const nombre = match[1];
-        // Evitamos que confunda el nombre con palabras comunes (ej: "soy un estudiante")
         const palabrasIgnoradas = ['un', 'una', 'el', 'la', 'muy', 'feliz', 'triste', 'ansioso', 'estudiante', 'programador', 'alguien'];
         
         if (!palabrasIgnoradas.includes(nombre.toLowerCase())) {
-          // Ponemos la primera letra en mayúscula y actualizamos
           this.nombreUsuario = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
           break;
         }
@@ -61,7 +58,7 @@ export class App implements OnInit, OnDestroy {
     }
   }
 
-  // --- RECONOCIMIENTO DE VOZ INTACTO ---
+  // --- RECONOCIMIENTO DE VOZ ---
   inicializarReconocimiento() {
     if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -116,7 +113,6 @@ export class App implements OnInit, OnDestroy {
     }
   }
 
-  // --- BOTÓN MODO LIVE INTACTO ---
   toggleConversacionLive() {
     if (this.modoMic === 'conversacion_live') {
       this.modoMic = 'apagado';
@@ -132,7 +128,6 @@ export class App implements OnInit, OnDestroy {
           this.enviarMensaje(textoAcumulado, true);
         }, 150);
       }
-
     } else {
       this.modoMic = 'conversacion_live';
       this.reconocimientoVoz.continuous = true; 
@@ -143,7 +138,6 @@ export class App implements OnInit, OnDestroy {
     }
   }
 
-  // --- BOTÓN MICRO CHIQUITO INTACTO ---
   toggleNotaVoz() {
     if (this.modoMic === 'nota_voz') {
       this.modoMic = 'apagado';
@@ -158,11 +152,10 @@ export class App implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  // --- ENVÍO MANUAL (AQUÍ AÑADIMOS LA DETECCIÓN DE NOMBRE) ---
+  // --- ENVÍO MANUAL (AQUÍ ESTÁ LA MAGIA Y EL FIX DEL LOCALHOST) ---
   async enviarMensaje(texto: string, requiereAudioParam?: boolean) {
     if (!texto || !texto.trim()) return;
 
-    // ¡MAGIA!: Antes de hacer cualquier cosa, revisamos si dijo su nombre
     this.detectarNombre(texto.trim());
 
     if (this.mensajeInput) {
@@ -175,14 +168,16 @@ export class App implements OnInit, OnDestroy {
     this.fueDictadoPorVoz = false;
     
     this.cdr.detectChanges();
-    this.cdr.markForCheck(); 
 
     try {
-      const response = await fetch('http://localhost:8000/chat', {
+      // ✅ FIX: Ruta relativa para que funcione perfecto en Render
+      const response = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ texto: texto.trim(), emocion_detectada: 'ansiedad', requiere_audio: debeGenerarAudio })
       });
+      
+      if (!response.ok) throw new Error('Error en el servidor');
       const data = await response.json();
 
       this.ngZone.run(() => {
@@ -193,19 +188,16 @@ export class App implements OnInit, OnDestroy {
             this.diagnosticoTexto = data.diagnostico || 'Evaluación terminada';
         }
         this.cdr.detectChanges();
-        this.cdr.markForCheck();
       });
     } catch (error) {
       this.ngZone.run(() => {
         this.pensando = false;
-        this.mensajes = [...this.mensajes, { emisor: 'ia', texto: 'Error de conexión.' }];
+        this.mensajes = [...this.mensajes, { emisor: 'ia', texto: 'Ups, perdí la conexión con el servidor. Intenta de nuevo.' }];
         this.cdr.detectChanges();
-        this.cdr.markForCheck();
       });
     }
   }
 
-  // --- RESTO DE FUNCIONES INTACTAS ---
   alEscribir() {
     this.fueDictadoPorVoz = false;
   }
